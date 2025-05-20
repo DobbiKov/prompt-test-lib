@@ -1,3 +1,11 @@
+//! Module providing helpful functions for working with text adjusting it for the LLMs.
+//!
+//!
+
+use std::io::{Read, Write};
+
+/// Takes a text, divides it into chunks (each chunk containing at most precised
+/// _lines\_per\_chunk_ number of lines) and returns the vector of such chunks
 pub fn divide_into_chunks(text: String, lines_per_chunk: usize) -> Vec<String> {
     let mut res = Vec::<String>::new();
 
@@ -23,6 +31,7 @@ pub fn divide_into_chunks(text: String, lines_per_chunk: usize) -> Vec<String> {
     res
 }
 
+/// Takes a text into parameter and returns the content written in the `<document>` tag.
 pub fn extract_translated_from_response(message: String) -> String {
     if !message.contains("<document>") {
         return String::new();
@@ -39,4 +48,12 @@ pub fn extract_translated_from_response(message: String) -> String {
         res.push_str(chunk_string);
     }
     res
+}
+
+/// Reads file and returns its contents in the String format
+pub fn read_string_file(path: &str) -> String {
+    let mut contents = String::new();
+    let mut file = std::fs::File::open(std::path::PathBuf::from(path)).expect("Couldn't open file");
+    let _ = file.read_to_string(&mut contents);
+    contents
 }

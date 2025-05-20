@@ -9,6 +9,7 @@ use llm::{
     LLMProvider,
 };
 
+/// The models preinstalled on my PC
 pub enum DobbiKovModels {
     Gemma312b,
 }
@@ -22,12 +23,16 @@ impl From<DobbiKovModels> for String {
 }
 
 #[derive(Clone)]
+/// Model builder struct
 pub struct OllamaModelBuilder {
+    /// Model name
     model: String,
+    /// System prompt (can be empty)
     sys_prompt: String,
 }
 
 impl OllamaModelBuilder {
+    /// Initializes builder struct
     pub fn new(model: impl Into<String>) -> Self {
         let model_str: String = model.into();
         OllamaModelBuilder {
@@ -35,24 +40,28 @@ impl OllamaModelBuilder {
             sys_prompt: String::new(),
         }
     }
+    /// Sets system prompt that will be provided to the LLM before each request
     pub fn set_system_prompt(mut self, prompt: String) -> OllamaModelBuilder {
         self.sys_prompt = prompt;
 
         self
     }
+    /// Build's the [OllamaModel] struct
     pub fn build(self) -> OllamaModel {
         OllamaModel::build_from_builder(self)
     }
 }
 
+/// Struct containing a model and it's system prompt
 pub struct OllamaModel {
-    model: String,
+    /// LLM provider
     llm: Box<dyn LLMProvider>,
+    /// System prompt that will be set for the model before each request
     sys_prompt: String,
 }
 
 impl OllamaModel {
-    pub fn build_from_builder(builder: OllamaModelBuilder) -> OllamaModel {
+    fn build_from_builder(builder: OllamaModelBuilder) -> OllamaModel {
         // probably the base_url logic should be changed
         let base_url = std::env::var("OLLAMA_URL").unwrap_or("http://127.0.0.1:11434".into());
 
@@ -68,11 +77,12 @@ impl OllamaModel {
             .expect("Failed to build LLM (Ollama)");
 
         Self {
-            model: builder.model,
             llm,
             sys_prompt: builder.sys_prompt,
         }
     }
+
+    /// Provides a requests to the model and returns it's response
     pub async fn ask(&self, message: String) -> String {
         let mut messages: Vec<ChatMessage> = vec![];
         if self.sys_prompt.len() > 0 {
@@ -88,14 +98,13 @@ impl OllamaModel {
     }
 }
 
-pub fn read_string_file(path: &str) -> String {
-    let mut contents = String::new();
-    let mut file = std::fs::File::open(std::path::PathBuf::from(path)).expect("Couldn't open file");
-    file.read_to_string(&mut contents);
-    contents
-}
-
-pub async fn ask_and_write_responses_to_file(llm: OllamaModel, message: String, output_path: &str) {
+/// Asks the provided LLM, get's it's response, extract the contents and writes it to the given
+/// file
+pub async fn ask_estract_contents_and_write_responses_to_file(
+    llm: OllamaModel,
+    message: String,
+    output_path: &str,
+) {
     let lines_per_chunk: usize = 20;
     let divided = divide_into_chunks(message, lines_per_chunk);
     let mut file = std::fs::OpenOptions::new()
@@ -107,7 +116,8 @@ pub async fn ask_and_write_responses_to_file(llm: OllamaModel, message: String, 
     println!("Total number of chunks: {}", divided.len());
     let mut chunk_num = 1;
     for chunk in divided {
-        let res = llm.ask(chunk).await;
+        let response = llm.ask(chunk).await;
+        let res = chunker::extract_translated_from_response(response);
 
         let _ = file.write_fmt(format_args!("{}", res));
         println!("Chunked processed: {}", chunk_num);

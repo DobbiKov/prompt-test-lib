@@ -1,3 +1,4 @@
+pub mod chunker;
 use std::io::Read;
 
 // Import required modules from the LLM library

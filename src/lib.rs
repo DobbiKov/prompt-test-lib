@@ -96,7 +96,7 @@ pub fn read_string_file(path: &str) -> String {
 }
 
 pub async fn ask_and_write_responses_to_file(llm: OllamaModel, message: String, output_path: &str) {
-    let lines_per_chunk: usize = 10;
+    let lines_per_chunk: usize = 20;
     let divided = divide_into_chunks(message, lines_per_chunk);
     let mut file = std::fs::OpenOptions::new()
         .append(true)

@@ -1,6 +1,7 @@
 pub mod chunker;
-use std::io::Read;
+use std::io::{Read, Write};
 
+use chunker::divide_into_chunks;
 // Import required modules from the LLM library
 use llm::{
     builder::{LLMBackend, LLMBuilder},
@@ -92,4 +93,24 @@ pub fn read_string_file(path: &str) -> String {
     let mut file = std::fs::File::open(std::path::PathBuf::from(path)).expect("Couldn't open file");
     file.read_to_string(&mut contents);
     contents
+}
+
+pub async fn ask_and_write_responses_to_file(llm: OllamaModel, message: String, output_path: &str) {
+    let lines_per_chunk: usize = 10;
+    let divided = divide_into_chunks(message, lines_per_chunk);
+    let mut file = std::fs::OpenOptions::new()
+        .append(true)
+        .create(true)
+        .open(output_path)
+        .expect("Incorrect path");
+
+    println!("Total number of chunks: {}", divided.len());
+    let mut chunk_num = 1;
+    for chunk in divided {
+        let res = llm.ask(chunk).await;
+
+        let _ = file.write_fmt(format_args!("{}", res));
+        println!("Chunked processed: {}", chunk_num);
+        chunk_num += 1;
+    }
 }

@@ -1,4 +1,5 @@
 pub mod chunker;
+use loggit::debug;
 use std::io::{Read, Write};
 
 use chunker::divide_into_chunks;
@@ -104,8 +105,8 @@ pub async fn ask_estract_contents_and_write_responses_to_file(
     llm: OllamaModel,
     message: String,
     output_path: &str,
+    lines_per_chunk: usize,
 ) {
-    let lines_per_chunk: usize = 20;
     let divided = divide_into_chunks(message, lines_per_chunk);
     let mut file = std::fs::OpenOptions::new()
         .append(true)
@@ -117,6 +118,12 @@ pub async fn ask_estract_contents_and_write_responses_to_file(
     let mut chunk_num = 1;
     for chunk in divided {
         let response = llm.ask(chunk).await;
+
+        let _ = loggit::logger::set_file("llm_debug_output.txt");
+        let _ = loggit::logger::set_log_level(loggit::Level::DEBUG);
+        let _ = loggit::logger::set_print_to_terminal(false);
+        debug!("\nChunk {}, contents:", chunk_num);
+        debug!("\n{}", response);
         let res = chunker::extract_translated_from_response(response);
 
         let _ = file.write_fmt(format_args!("{}", res));

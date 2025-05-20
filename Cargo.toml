@@ -5,5 +5,6 @@ edition = "2024"
 
 [dependencies]
 llm = { version = "1.0.4", features = ["openai", "anthropic", "ollama", "deepseek", "xai", "phind", "google", "groq"] }
+loggit = "0.1.8"
 tokio = { version = "1.45.0", features = ["full"] }
 

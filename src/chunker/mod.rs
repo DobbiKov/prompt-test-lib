@@ -33,17 +33,17 @@ pub fn divide_into_chunks(text: String, lines_per_chunk: usize) -> Vec<String> {
 
 /// Takes a text into parameter and returns the content written in the `<document>` tag.
 pub fn extract_translated_from_response(message: String) -> String {
-    if !message.contains("<document>") {
+    if !message.contains("<output>") {
         return String::new();
     }
     let mut res = String::new();
-    let mut chunks_iter = message.split("<document>");
+    let mut chunks_iter = message.split("<output>");
     let _ = chunks_iter.next();
     while let Some(chunk) = chunks_iter.next() {
         let mut chunk_string = chunk;
 
-        if chunk_string.contains("</document>") {
-            chunk_string = chunk_string.split("</document>").next().unwrap()
+        if chunk_string.contains("</output>") {
+            chunk_string = chunk_string.split("</output>").next().unwrap()
         }
         res.push_str(chunk_string);
     }

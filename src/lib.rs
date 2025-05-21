@@ -1,4 +1,5 @@
 pub mod chunker;
+pub mod gemma;
 use loggit::debug;
 use std::io::{Read, Write};
 
@@ -13,11 +14,13 @@ use llm::{
 /// The models preinstalled on my PC
 pub enum DobbiKovModels {
     Gemma312b,
+    Aya8B,
 }
 impl From<DobbiKovModels> for String {
     fn from(value: DobbiKovModels) -> Self {
         match value {
             DobbiKovModels::Gemma312b => "gemma3:12b-it-qat",
+            DobbiKovModels::Aya8B => "aya:8b",
         }
         .to_string()
     }
@@ -86,10 +89,14 @@ impl OllamaModel {
     /// Provides a requests to the model and returns it's response
     pub async fn ask(&self, message: String) -> String {
         let mut messages: Vec<ChatMessage> = vec![];
+        let mut fin_mess = String::new();
         if self.sys_prompt.len() > 0 {
-            messages.push(ChatMessage::user().content(&self.sys_prompt).build())
+            //messages.push(ChatMessage::user().content(&self.sys_prompt).build())
+            //fin_mess.push_str(&self.sys_prompt);
         }
-        messages.push(ChatMessage::user().content(message).build());
+        fin_mess.push_str(&message);
+        messages.push(ChatMessage::user().content(&fin_mess).build());
+        debug!("---Full prompt: \n{}", &fin_mess);
         //
         //// Send chat request and handle the response
         match self.llm.chat(&messages).await {
@@ -103,6 +110,8 @@ impl OllamaModel {
 /// file
 pub async fn ask_estract_contents_and_write_responses_to_file(
     llm: OllamaModel,
+    translate_prompt: String,
+    fixer_prompt: String,
     message: String,
     output_path: &str,
     lines_per_chunk: usize,
@@ -116,18 +125,49 @@ pub async fn ask_estract_contents_and_write_responses_to_file(
 
     println!("Total number of chunks: {}", divided.len());
     let mut chunk_num = 1;
+    let _ = loggit::logger::set_file("llm_debug_output.txt");
+    let _ = loggit::logger::set_log_level(loggit::Level::DEBUG);
+    let _ = loggit::logger::set_print_to_terminal(false);
     for chunk in divided {
-        let response = llm.ask(chunk).await;
+        let mut request = String::new();
+        request.push_str(&translate_prompt);
+        request.push_str("<document>\n");
+        request.push_str(&chunk);
+        request.push_str("</document>");
 
-        let _ = loggit::logger::set_file("llm_debug_output.txt");
-        let _ = loggit::logger::set_log_level(loggit::Level::DEBUG);
-        let _ = loggit::logger::set_print_to_terminal(false);
+        let response = llm.ask(request).await;
+
         debug!("\nChunk {}, contents:", chunk_num);
         debug!("\n{}", response);
         let res = chunker::extract_translated_from_response(response);
 
-        let _ = file.write_fmt(format_args!("{}", res));
+        let corr_res = compare_and_return_fixed(&llm, &fixer_prompt, chunk, res).await;
+
+        let _ = file.write_fmt(format_args!("{}", corr_res));
         println!("Chunked processed: {}", chunk_num);
         chunk_num += 1;
     }
+}
+
+async fn compare_and_return_fixed(
+    llm: &OllamaModel,
+    fixer_prompt: &str,
+    original: String,
+    output: String,
+) -> String {
+    let mut request = String::new();
+    request.push_str(fixer_prompt);
+    request.push_str("<document>\n");
+    request.push_str(&original);
+    request.push_str("</document>\n");
+    request.push_str("<translated>\n");
+    request.push_str(&output);
+    request.push_str("</translated>");
+    println!("{}", &request);
+
+    let response = llm.ask(request).await;
+    println!("----");
+    println!("{}", &response);
+    let res = chunker::extract_translated_from_response(response);
+    res
 }

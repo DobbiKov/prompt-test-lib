@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+google-genai = "0.0.2"
 llm = { version = "1.0.4", features = ["openai", "anthropic", "ollama", "deepseek", "xai", "phind", "google", "groq"] }
 loggit = "0.1.8"
 tokio = { version = "1.45.0", features = ["full"] }
